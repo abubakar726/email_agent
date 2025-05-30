@@ -37,7 +37,7 @@ def extract_emails_from_main_page(url):
 
 # --- Streamlit Interface ---
 st.set_page_config(page_title="Email Scraper", layout="centered")
-st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
+st.title("📬 Website Email Scraper")
 
 urls_input = st.text_area("Paste website URLs (one per line)", height=200)
 
