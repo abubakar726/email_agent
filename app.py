@@ -55,7 +55,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
+st.title("📬 Website Email Scraper")
 
 # Session state to persist results
 if 'results' not in st.session_state:
