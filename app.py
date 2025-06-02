@@ -36,44 +36,90 @@ def extract_emails_from_main_page(url):
 
 # --- Streamlit Interface ---
 st.set_page_config(page_title="Email Scraper", layout="centered")
+st.markdown("""
+    <style>
+        .download-container {
+            position: fixed;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            z-index: 9999;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .download-button {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
 
 # Session state to persist results
 if 'results' not in st.session_state:
     st.session_state.results = []
+if 'scraped' not in st.session_state:
+    st.session_state.scraped = False
 
-urls_input = st.text_area("Paste website URLs (one per line)", height=200)
+# Text area and file upload
+urls_input = st.text_area("Paste website URLs (one per line)", height=150)
+uploaded_file = st.file_uploader("📁 Or upload a CSV file with a 'URL' column", type=["csv"])
 
-# Scraping logic
-if st.button("🔍 Scrape Emails"):
+# Read URLs
+urls = []
+if uploaded_file:
+    df_file = pd.read_csv(uploaded_file)
+    if 'URL' in df_file.columns:
+        urls = df_file['URL'].dropna().tolist()
+    else:
+        st.warning("CSV file must contain a 'URL' column")
+elif urls_input:
     urls = urls_input.strip().splitlines()
-    results = []
 
-    for url in urls:
-        url = url.strip()
-        if not url.startswith('http'):
-            url = 'https://' + url
-        with st.spinner(f"Scraping: {url}"):
-            email_result = extract_emails_from_main_page(url)
-            st.success(f"{url} → {email_result}")
-            results.append({"Website": url, "Email": email_result})
+col1, col2 = st.columns([1, 1])
 
-    # Store in session so it persists
-    st.session_state.results = results
+with col1:
+    if st.button("🔍 Scrape Emails") and urls:
+        results = []
+
+        progress_bar = st.progress(0)
+
+        for i, url in enumerate(urls):
+            url = url.strip()
+            if not url.startswith('http'):
+                url = 'https://' + url
+            with st.spinner(f"Scraping: {url}"):
+                email_result = extract_emails_from_main_page(url)
+                st.success(f"{url} → {email_result}")
+                results.append({"Website": url, "Email": email_result})
+                progress_bar.progress((i + 1) / len(urls))
+
+        st.session_state.results = results
+        st.session_state.scraped = True
+        progress_bar.empty()
+
+with col2:
+    if st.button("🔄 Reset"):
+        st.session_state.results = []
+        st.session_state.scraped = False
+        st.experimental_rerun()
 
 # Display results and download if available
-if st.session_state.results:
+if st.session_state.results and st.session_state.scraped:
     df = pd.DataFrame(st.session_state.results)
 
-    # Display download at the top immediately after scraping
-    st.markdown("### 📥 Download Scraped Results")
+    st.markdown('<div class="download-container">', unsafe_allow_html=True)
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download Results as CSV",
         data=csv,
         file_name="emails.csv",
-        mime='text/csv'
+        mime='text/csv',
+        key="download-csv"
     )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("### 📋 Scraped Results")
     st.dataframe(df)
