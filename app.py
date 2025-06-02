@@ -37,7 +37,7 @@ def extract_emails_from_main_page(url):
 
 # --- Streamlit Interface ---
 st.set_page_config(page_title="Email Scraper", layout="centered")
-st.title("📬 Website Email Scraper")
+st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
 
 urls_input = st.text_area("Paste website URLs (one per line)", height=200)
 
@@ -56,11 +56,19 @@ if st.button("🔍 Scrape Emails"):
 
     df = pd.DataFrame(results)
 
-    # --- CSV Download ---
+    # --- Auto Download CSV File (via download link with JS redirect) ---
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="📅 Download Results as CSV",
+        label="\U0001F4C5 Download Results as CSV",
         data=csv,
         file_name="emails.csv",
         mime='text/csv'
     )
+
+    # Inject JS to auto-click the download button
+    st.markdown("""
+        <script>
+            const btn = window.parent.document.querySelector('button[title="\ud83d\udcc5 Download Results as CSV"]');
+            if(btn){btn.click()}
+        </script>
+    """, unsafe_allow_html=True)
