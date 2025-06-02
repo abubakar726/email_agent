@@ -34,13 +34,28 @@ def extract_emails_from_main_page(url):
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-
 # --- Streamlit Interface ---
 st.set_page_config(page_title="Email Scraper", layout="centered")
 st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
 
+# Session state to persist results
+if 'results' not in st.session_state:
+    st.session_state.results = []
+
 urls_input = st.text_area("Paste website URLs (one per line)", height=200)
 
+# Show download button first if results exist
+if st.session_state.results:
+    df = pd.DataFrame(st.session_state.results)
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Results as CSV",
+        data=csv,
+        file_name="emails.csv",
+        mime='text/csv'
+    )
+
+# Scraping logic
 if st.button("🔍 Scrape Emails"):
     urls = urls_input.strip().splitlines()
     results = []
@@ -54,21 +69,10 @@ if st.button("🔍 Scrape Emails"):
             st.success(f"{url} → {email_result}")
             results.append({"Website": url, "Email": email_result})
 
-    df = pd.DataFrame(results)
+    # Store in session so it persists
+    st.session_state.results = results
 
-    # --- Auto Download CSV File (via download link with JS redirect) ---
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="\U0001F4C5 Download Results as CSV",
-        data=csv,
-        file_name="emails.csv",
-        mime='text/csv'
-    )
-
-    # Inject JS to auto-click the download button
-    st.markdown("""
-        <script>
-            const btn = window.parent.document.querySelector('button[title="\ud83d\udcc5 Download Results as CSV"]');
-            if(btn){btn.click()}
-        </script>
-    """, unsafe_allow_html=True)
+# Display results if available
+if st.session_state.results:
+    st.markdown("### 📋 Scraped Results")
+    st.dataframe(pd.DataFrame(st.session_state.results))
