@@ -44,17 +44,6 @@ if 'results' not in st.session_state:
 
 urls_input = st.text_area("Paste website URLs (one per line)", height=200)
 
-# Show download button first if results exist
-if st.session_state.results:
-    df = pd.DataFrame(st.session_state.results)
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download Results as CSV",
-        data=csv,
-        file_name="emails.csv",
-        mime='text/csv'
-    )
-
 # Scraping logic
 if st.button("🔍 Scrape Emails"):
     urls = urls_input.strip().splitlines()
@@ -72,7 +61,19 @@ if st.button("🔍 Scrape Emails"):
     # Store in session so it persists
     st.session_state.results = results
 
-# Display results if available
+# Display results and download if available
 if st.session_state.results:
+    df = pd.DataFrame(st.session_state.results)
+
+    # Display download at the top immediately after scraping
+    st.markdown("### 📥 Download Scraped Results")
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Results as CSV",
+        data=csv,
+        file_name="emails.csv",
+        mime='text/csv'
+    )
+
     st.markdown("### 📋 Scraped Results")
-    st.dataframe(pd.DataFrame(st.session_state.results))
+    st.dataframe(df)
