@@ -130,148 +130,56 @@
 #         </div>
 #         """, unsafe_allow_html=True)
 
-import streamlit as st
-import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import re
 
-# --- Updated Email Extraction Function ---
-def extract_emails_from_main_page(url):
+def extract_emails_from_website(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+
+        # Step 1: Send HTTP request
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
+        # Step 2: Parse HTML with BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        for tag in soup(['script', 'style', 'meta', 'noscript']):
-            tag.decompose()
+        # Step 3: Get all visible text
+        text = soup.get_text()
 
-        visible_text = soup.get_text(separator=' ', strip=True)
+        # Step 4: Get all href links
+        links = soup.find_all('a', href=True)
 
-        # Extract emails from visible text
-        emails_from_text = set(re.findall(
-            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}", visible_text))
+        emails = set()
 
-        # Extract emails from mailto: links
-        emails_from_mailto = set()
-        for a in soup.find_all('a', href=True):
-            href = a['href']
+        # Step 5: Find all emails from plain text
+        text_emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+        emails.update(text_emails)
+
+        # Step 6: Find emails in mailto: links
+        for link in links:
+            href = link['href']
             if href.startswith('mailto:'):
-                email = href.replace('mailto:', '').split('?')[0]
-                emails_from_mailto.add(email)
+                email = href.replace("mailto:", "").split("?")[0]
+                emails.add(email)
 
-        # Combine all emails
-        all_emails = emails_from_text.union(emails_from_mailto)
-
-        # Filter
-        excluded_domains = ['sentry.io', 'wixpress.com', 'sentry.wixpress.com']
-        image_extensions = ('.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp')
-
-        valid_emails = {
-            e for e in all_emails
-            if all(domain not in e.lower() for domain in excluded_domains)
-            and not e.lower().endswith(image_extensions)
-        }
-
-        return ', '.join(valid_emails) if valid_emails else "❌ No valid email found"
+        return list(emails)
 
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        print(f"Error fetching {url}: {e}")
+        return []
 
-# --- Streamlit Interface ---
-st.set_page_config(page_title="Email Scraper", layout="centered")
-st.markdown("""
-    <style>
-        .download-container {
-            position: fixed;
-            top: 10px;
-            left: 0;
-            width: 100%;
-            background: #fff;
-            z-index: 9999;
-            padding: 10px 0;
-            border-bottom: 1px solid #ddd;
-        }
-        .download-button {
-            display: flex;
-            justify-content: center;
-        }
-        .result-box {
-            background-color: #e6fff2;
-            padding: 12px;
-            border-left: 5px solid #00cc66;
-            margin: 10px 0;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("📬 Website Email Scraper (Updated - Works with mailto links)")
-
-# Session state to persist results
-if 'results' not in st.session_state:
-    st.session_state.results = []
-if 'scraped' not in st.session_state:
-    st.session_state.scraped = False
-if 'input_urls' not in st.session_state:
-    st.session_state.input_urls = []
-
-# CSV upload input
-uploaded_file = st.file_uploader("📁 Upload a CSV file with a 'URL' column", type=["csv"])
-
-# Manual input
-st.markdown("---")
-st.write("Or paste URLs manually below:")
-manual_urls = st.text_area("One URL per line", height=150)
-
-# Merge inputs
-urls = []
-if uploaded_file:
-    df_file = pd.read_csv(uploaded_file)
-    if 'URL' in df_file.columns:
-        urls = df_file['URL'].dropna().tolist()
+# 🔍 Test the function
+if __name__ == "__main__":
+    website_url = "https://ahitmarketing.com/"
+    found_emails = extract_emails_from_website(website_url)
+    
+    if found_emails:
+        print("\n📧 Found Emails:")
+        for email in found_emails:
+            print("-", email)
     else:
-        st.warning("CSV file must contain a 'URL' column")
-elif manual_urls.strip():
-    urls = manual_urls.strip().splitlines()
-
-if st.button("🔍 Scrape Emails") and urls:
-    st.session_state.results = []
-    progress_bar = st.progress(0)
-
-    for i, url in enumerate(urls):
-        url = url.strip()
-        if not url.startswith('http'):
-            url = 'https://' + url
-        with st.spinner(f"Scraping: {url}"):
-            email_result = extract_emails_from_main_page(url)
-            st.session_state.results.append({"Website": url, "Email": email_result})
-            progress_bar.progress((i + 1) / len(urls))
-
-    st.session_state.scraped = True
-    progress_bar.empty()
-
-# Show download + results
-if st.session_state.results:
-    df = pd.DataFrame(st.session_state.results)
-    st.markdown('<div class="download-container">', unsafe_allow_html=True)
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download Results as CSV",
-        data=csv,
-        file_name="emails.csv",
-        mime='text/csv',
-        key="download-csv"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("### 📋 Scraped Results")
-    for result in st.session_state.results:
-        st.markdown(f"""
-        <div class='result-box'>
-        <a href="{result['Website']}" target="_blank">{result['Website']}</a> → {result['Email']}
-        </div>
-        """, unsafe_allow_html=True)
+        print("❌ No emails found.")
