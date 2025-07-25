@@ -4,15 +4,10 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-# --- Email Extraction Function (Updated for Facebook) ---
-def extract_emails_from_page(url):
+# --- Email Extraction Function (No Selenium) ---
+def extract_emails_from_main_page(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-
-        # Use mobile version for Facebook pages
-        if "facebook.com" in url and "m.facebook.com" not in url:
-            url = url.replace("www.facebook.com", "m.facebook.com").replace("facebook.com", "m.facebook.com")
-
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
@@ -68,7 +63,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📬 Website Email Scraper (Now supports Facebook pages too!)")
+st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
 
 # Session state to persist results
 if 'results' not in st.session_state:
@@ -97,7 +92,6 @@ if uploaded_file:
 elif manual_urls.strip():
     urls = manual_urls.strip().splitlines()
 
-# Process URLs
 if st.button("🔍 Scrape Emails") and urls:
     st.session_state.results = []
     progress_bar = st.progress(0)
@@ -107,7 +101,7 @@ if st.button("🔍 Scrape Emails") and urls:
         if not url.startswith('http'):
             url = 'https://' + url
         with st.spinner(f"Scraping: {url}"):
-            email_result = extract_emails_from_page(url)
+            email_result = extract_emails_from_main_page(url)
             st.session_state.results.append({"Website": url, "Email": email_result})
             progress_bar.progress((i + 1) / len(urls))
 
