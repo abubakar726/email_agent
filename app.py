@@ -151,21 +151,26 @@ def extract_emails_from_main_page(url):
         visible_text = soup.get_text(separator=' ', strip=True)
 
         # Extract emails from visible text
-        emails_text = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}", visible_text))
+        emails_from_text = set(re.findall(
+            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}", visible_text))
 
         # Extract emails from mailto: links
-        mailto_links = [a['href'] for a in soup.find_all('a', href=True) if a['href'].startswith('mailto:')]
-        emails_mailto = set(link.replace('mailto:', '').split('?')[0] for link in mailto_links)
+        emails_from_mailto = set()
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if href.startswith('mailto:'):
+                email = href.replace('mailto:', '').split('?')[0]
+                emails_from_mailto.add(email)
 
-        # Combine both sources
-        emails = emails_text.union(emails_mailto)
+        # Combine all emails
+        all_emails = emails_from_text.union(emails_from_mailto)
 
-        # Filter out unwanted domains or formats
+        # Filter
         excluded_domains = ['sentry.io', 'wixpress.com', 'sentry.wixpress.com']
         image_extensions = ('.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp')
 
         valid_emails = {
-            e for e in emails
+            e for e in all_emails
             if all(domain not in e.lower() for domain in excluded_domains)
             and not e.lower().endswith(image_extensions)
         }
@@ -204,7 +209,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📬 Website Email Scraper (Streamlit Cloud Friendly)")
+st.title("📬 Website Email Scraper (Updated - Works with mailto links)")
 
 # Session state to persist results
 if 'results' not in st.session_state:
